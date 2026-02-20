@@ -5,6 +5,7 @@ import { api } from './services/api';
 import { MARATHONS, MOTIVATIONAL_QUOTES, LogoIcon } from './constants';
 import Countdown from './components/Countdown';
 import WorkoutSection from './components/WorkoutSection';
+import { Database, LogOut, ChevronLeft, ShieldAlert } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -102,6 +103,34 @@ const App: React.FC = () => {
     }
   };
 
+  const handleRegisterWeight = async () => {
+    if (!currentUser || !weightInput) return;
+    setLoading(true);
+    try {
+      const weight = parseFloat(weightInput);
+      await api.registerWeight(currentUser.id, weight, currentUser.weightHistory || []);
+      const updatedUser = await api.login(currentUser.name);
+      if (updatedUser) setCurrentUser(updatedUser);
+      setWeightInput("");
+      alert("Peso registrado. ¡Sigue así!");
+    } catch (e) {
+      alert("Error al registrar peso.");
+    }
+    setLoading(false);
+  };
+
+  const handleInitDB = async () => {
+    if (!confirm("¿Deseas inicializar la base de datos? Esto creará las tablas y planes por defecto.")) return;
+    setLoading(true);
+    try {
+      await api.initDatabase();
+      alert("Base de datos inicializada.");
+    } catch (e) {
+      alert("Error al inicializar: " + e.message);
+    }
+    setLoading(false);
+  };
+
   const handleCascadeDeleteUser = async (userId: string) => {
     if (window.confirm('¿ELIMINAR SOLDADO DEFINITIVAMENTE? Se borrará TODO su progreso de la base de datos SQL.')) {
       setLoading(true);
@@ -132,8 +161,8 @@ const App: React.FC = () => {
               placeholder="CONTRASEÑA" required
             />
             {authError && <p className="text-red-500 text-xs font-black uppercase tracking-widest">{authError}</p>}
-            <button type="submit" disabled={loading} className="w-full bg-red-600 hover:bg-red-700 text-white font-black text-3xl py-6 rounded-2xl shadow-xl transition-all uppercase italic">
-              {loading ? 'CARGANDO...' : (authMode === 'login' ? 'ENTRAR' : 'UNIRSE')}
+            <button type="submit" disabled={loading} className="w-full bg-red-600 hover:bg-red-700 text-white font-black text-3xl py-6 rounded-2xl shadow-xl transition-all uppercase italic disabled:opacity-50">
+              {loading ? 'CONECTANDO...' : (authMode === 'login' ? 'ENTRAR' : 'UNIRSE')}
             </button>
           </form>
           <button onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} className="mt-8 text-zinc-600 hover:text-white transition-colors text-[10px] font-black uppercase tracking-[0.3em]">
@@ -152,8 +181,14 @@ const App: React.FC = () => {
           <p className="hidden lg:block font-display text-5xl italic font-black text-white group-hover:text-red-600 transition-colors uppercase">HOLA, {currentUser.name}!</p>
         </div>
         <div className="flex items-center gap-6">
-          {isAdmin && <button onClick={() => setView('admin')} className="px-6 py-2 rounded-xl border-2 border-zinc-800 font-black text-xs uppercase italic text-white hover:border-red-600 transition-all">PANEL MANDO</button>}
-          <button onClick={() => { setCurrentUser(null); setView('dashboard'); }} className="text-zinc-700 hover:text-red-600 transition-colors"><svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg></button>
+          {isAdmin && (
+            <button onClick={() => setView('admin')} className="flex items-center gap-2 px-6 py-2 rounded-xl border-2 border-zinc-800 font-black text-xs uppercase italic text-white hover:border-red-600 transition-all">
+              <ShieldAlert size={16} /> PANEL MANDO
+            </button>
+          )}
+          <button onClick={() => { setCurrentUser(null); setView('dashboard'); }} className="text-zinc-700 hover:text-red-600 transition-colors">
+            <LogOut size={32} />
+          </button>
         </div>
       </nav>
 
@@ -180,7 +215,13 @@ const App: React.FC = () => {
                   <input type="number" value={weightInput} onChange={(e) => setWeightInput(e.target.value)} className="bg-transparent text-white font-display text-8xl font-black w-36 text-center outline-none" placeholder="0.0" />
                   <span className="font-display text-2xl text-zinc-700 italic">KG</span>
                 </div>
-                <button onClick={() => {}} className="w-full py-5 bg-red-600 text-white font-black text-lg rounded-2xl shadow-xl shadow-red-600/10 uppercase italic hover:bg-red-700 transition-all">REGISTRAR PESO</button>
+                <button 
+                  onClick={handleRegisterWeight} 
+                  disabled={loading || !weightInput}
+                  className="w-full py-5 bg-red-600 text-white font-black text-lg rounded-2xl shadow-xl shadow-red-600/10 uppercase italic hover:bg-red-700 transition-all disabled:opacity-50"
+                >
+                  {loading ? 'REGISTRANDO...' : 'REGISTRAR PESO'}
+                </button>
               </div>
             </div>
 
@@ -202,7 +243,9 @@ const App: React.FC = () => {
           <div className="animate-fadeIn">
             <div className="mb-20 flex flex-col lg:flex-row lg:items-end justify-between gap-12">
               <div className="flex items-center gap-10">
-                <button onClick={() => setView(inspectedUser ? 'admin' : 'dashboard')} className="w-20 h-20 bg-zinc-900 rounded-3xl flex items-center justify-center border border-white/5 hover:bg-red-600 hover:scale-110 transition-all text-white shadow-2xl"><svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" /></svg></button>
+                <button onClick={() => setView(inspectedUser ? 'admin' : 'dashboard')} className="w-20 h-20 bg-zinc-900 rounded-3xl flex items-center justify-center border border-white/5 hover:bg-red-600 hover:scale-110 transition-all text-white shadow-2xl">
+                  <ChevronLeft size={40} strokeWidth={3} />
+                </button>
                 <h2 className="font-display text-9xl font-black italic uppercase text-red-600 tracking-tighter leading-none">{MARATHONS.find(m => m.id === selectedPlanId)?.name}</h2>
               </div>
               <div className="bg-zinc-900/60 p-10 rounded-[2.5rem] border border-white/5 shadow-2xl">
@@ -215,7 +258,15 @@ const App: React.FC = () => {
 
         {view === 'admin' && (
           <div className="animate-fadeIn space-y-20">
-            <h2 className="font-display text-9xl font-black italic uppercase text-white tracking-tighter border-b-8 border-red-600 inline-block pb-6 leading-none">INTELIGENCIA</h2>
+            <div className="flex justify-between items-end">
+              <h2 className="font-display text-9xl font-black italic uppercase text-white tracking-tighter border-b-8 border-red-600 inline-block pb-6 leading-none">INTELIGENCIA</h2>
+              <button 
+                onClick={handleInitDB}
+                className="flex items-center gap-3 px-8 py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-black rounded-2xl transition-all uppercase italic text-xs border border-white/5"
+              >
+                <Database size={18} /> INICIALIZAR BASE DE DATOS
+              </button>
+            </div>
             <div className="grid grid-cols-1 gap-10">
               {allUsers.filter(u => u.role !== Role.ADMIN).map(user => (
                 <div key={user.id} className="bg-zinc-900/40 p-12 rounded-[3.5rem] border border-white/5 flex flex-col xl:flex-row justify-between items-center group transition-all hover:bg-zinc-900/60 shadow-2xl">
@@ -225,6 +276,12 @@ const App: React.FC = () => {
                       <span>ID: {user.id}</span>
                       <span className="text-red-900">•</span>
                       <span>{user.activePlanId ? `OBJETIVO: ${user.activePlanId.toUpperCase()}` : 'SIN MISIÓN'}</span>
+                      {user.weightHistory && user.weightHistory.length > 0 && (
+                        <>
+                          <span className="text-red-900">•</span>
+                          <span className="text-green-600">ÚLTIMO PESO: {user.weightHistory[user.weightHistory.length-1].value} KG</span>
+                        </>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-6 mt-8 xl:mt-0">
@@ -239,7 +296,7 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <footer className="fixed bottom-0 left-0 right-0 h-16 bg-black border-t border-white/5 flex items-center justify-center text-[10px] font-black text-zinc-800 uppercase tracking-[1em] z-50">SANCHOPANCEROS • EL SUEÑO DE LOS VALIENTES • SQL INFRASTRUCTURE</footer>
+      <footer className="fixed bottom-0 left-0 right-0 h-16 bg-black border-t border-white/5 flex items-center justify-center text-[10px] font-black text-zinc-800 uppercase tracking-[1em] z-50">SANCHOPANCEROS • EL SUEÑO DE LOS VALIENTES • POSTGRESQL INFRASTRUCTURE</footer>
     </div>
   );
 };

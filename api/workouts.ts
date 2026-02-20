@@ -10,7 +10,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (req.method === 'GET') {
       const { planId, userId } = req.query;
-      // En una DB real, uniríamos la definición del workout con el progreso del usuario
       const { rows } = await pool.query(
         `SELECT w.*, p.completed, p.skipped, p.actual_distance_km, p.duration, p.feelings, p.has_injury, p.injury_note
          FROM workouts w
@@ -19,12 +18,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
          ORDER BY w.order_num ASC`,
         [userId, planId]
       );
-      return res.status(200).json(rows);
+      
+      return res.status(200).json(rows.map(r => ({
+        id: r.id,
+        planId: r.plan_id,
+        week: r.week,
+        order: r.order_num,
+        description: r.description,
+        completed: !!r.completed,
+        skipped: !!r.skipped,
+        distanceKm: r.distance_km,
+        actualDistanceKm: r.actual_distance_km,
+        duration: r.duration,
+        feelings: r.feelings,
+        hasInjury: !!r.has_injury,
+        injuryNote: r.injury_note
+      })));
     }
 
     if (req.method === 'POST') {
       const { workoutId, userId, ...updates } = req.body;
-      // Upsert progreso
       const query = `
         INSERT INTO user_progress (user_id, workout_id, completed, skipped, actual_distance_km, duration, feelings, has_injury, injury_note)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -38,9 +51,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           injury_note = EXCLUDED.injury_note
       `;
       const values = [
-        userId, workoutId, updates.completed, updates.skipped, 
-        updates.actualDistanceKm, updates.duration, updates.feelings, 
-        updates.hasInjury, updates.injuryNote
+        userId, 
+        workoutId, 
+        updates.completed ?? false, 
+        updates.skipped ?? false, 
+        updates.actualDistanceKm ?? 0, 
+        updates.duration ?? null, 
+        updates.feelings ?? null, 
+        updates.hasInjury ?? false, 
+        updates.injuryNote ?? null
       ];
       await pool.query(query, values);
       return res.status(200).json({ success: true });

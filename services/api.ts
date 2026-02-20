@@ -1,5 +1,5 @@
 
-import { User, Workout, Role } from '../types';
+import { User, Workout, Role, WeightEntry } from '../types';
 
 const API_BASE = '/api';
 
@@ -41,6 +41,13 @@ export const api = {
     if (!res.ok) throw new Error('Update failed');
   },
 
+  async registerWeight(userId: string, weight: number, weightHistory: WeightEntry[]): Promise<void> {
+    const month = new Intl.DateTimeFormat('es-ES', { month: 'long' }).format(new Date());
+    const newEntry = { month, value: weight };
+    const updatedHistory = [...weightHistory, newEntry];
+    await this.updateUser(userId, { weightHistory: updatedHistory });
+  },
+
   async getWorkouts(planId: string, userId: string): Promise<Workout[]> {
     const res = await fetch(`${API_BASE}/workouts?planId=${planId}&userId=${userId}`);
     if (!res.ok) throw new Error('Failed to fetch workouts');
@@ -54,5 +61,10 @@ export const api = {
       body: JSON.stringify({ workoutId, userId, ...updates })
     });
     if (!res.ok) throw new Error('Workout update failed');
+  },
+
+  async initDatabase(): Promise<void> {
+    const res = await fetch(`${API_BASE}/init`, { method: 'POST' });
+    if (!res.ok) throw new Error('Database initialization failed');
   }
 };
